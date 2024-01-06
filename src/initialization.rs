@@ -53,7 +53,7 @@ pub fn setup_logger() -> Result<()> {
         .chain(fern::log_file("output.log")?)
         .level(log::LevelFilter::Error)
         .level(log::LevelFilter::Warn)
-        .level_for("POWS", LevelFilter::Info)
+        .level_for("pow20_miner_rs", LevelFilter::Info)
         .apply()?;
 
     Ok(())
