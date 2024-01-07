@@ -37,8 +37,12 @@ pub struct Config {
     pub rpc_url: String,
     pub private_key: String,
     pub count: u32,
+    #[serde(default = "default_prefix_gas_limit")]
+    pub gas_limit: u64,
 }
-
+fn default_prefix_gas_limit() -> u64 {
+    200000
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -98,7 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     while success < config.count {
         log_banner(format!("第 {} 次挖矿,共 {} 次", success + 1, config.count));
-        if miner(&contract, address).await? {
+        if miner(&contract, address,config.gas_limit).await? {
             success = success + 1;
         }
     }
@@ -110,7 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn miner(contract: &Arc<IPOW<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>>, address: Address) -> Result<bool, Box<dyn std::error::Error>> {
+async fn miner(contract: &Arc<IPOW<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>>, address: Address,gas_limit:u64) -> Result<bool, Box<dyn std::error::Error>> {
     let id = U256::from(1);
     let revenue = U256::from(1000);
     let balance = contract.balance_of(address, id).call().await?;
@@ -132,7 +136,7 @@ async fn miner(contract: &Arc<IPOW<SignerMiddleware<Provider<Http>, Wallet<Signi
 
     if let Some(nonce) = nonce {
         info!("✅  Find the nonce: {}", nonce);
-        let result = contract.mine(id, revenue, nonce).send().await.unwrap().await.unwrap();
+        let result = contract.mine(id, revenue, nonce).gas(gas_limit).send().await.unwrap().await.unwrap();
         match result {
             Some(tx) => {
                 info!("🙆 Successfully mined a block: {:?}", tx.transaction_hash);
@@ -175,6 +179,7 @@ fn mine_worker(
         .map(|index| {
             TIMES.fetch_add(1, Ordering::Relaxed);
             let nonce = base_nonce + U256::from(index);
+            //println!("nonce: {} index{}", nonce,index);
             let mut data = Vec::new();
             data.extend_from_slice(&from_bytes);
             data.extend_from_slice(&challenge_bytes);
